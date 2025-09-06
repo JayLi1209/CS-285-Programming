@@ -24,6 +24,7 @@ from cs285.policies.loaded_gaussian_policy import LoadedGaussianPolicy
 # how many rollouts to save as videos to tensorboard
 MAX_NVIDEO = 2
 MAX_VIDEO_LEN = 40  # we overwrite this in the code below
+MAX_PATH_LENGTH = 10e7
 
 MJ_ENV_NAMES = ["Ant-v4", "Walker2d-v4", "HalfCheetah-v4", "Hopper-v4"]
 
@@ -132,7 +133,10 @@ def run_training_loop(params):
             # TODO: collect `params['batch_size']` transitions
             # HINT: use utils.sample_trajectories
             # TODO: implement missing parts of utils.sample_trajectory
-            paths, envsteps_this_batch = TODO
+
+            # data = sample_trajectory(env, actor, MAX_PATH_LENGTH)
+            # params['batch_size'] = data["timestep"]
+            paths, envsteps_this_batch = utils.sample_trajectories(env, actor, params['batch_size'], params['ep_len'])
 
             # relabel the collected obs with actions from a provided expert policy
             if params['do_dagger']:
@@ -141,7 +145,9 @@ def run_training_loop(params):
                 # TODO: relabel collected obsevations (from our policy) with labels from expert policy
                 # HINT: query the policy (using the get_action function) with paths[i]["observation"]
                 # and replace paths[i]["action"] with these expert labels
-                paths = TODO
+
+                for i in range(len(paths)):
+                    paths[i]["action"] = expert_policy.get_action(paths[i]["observation"])
 
         total_envsteps += envsteps_this_batch
         # add collected data to replay buffer
@@ -156,8 +162,16 @@ def run_training_loop(params):
           # HINT1: how much data = params['train_batch_size']
           # HINT2: use np.random.permutation to sample random indices
           # HINT3: return corresponding data points from each array (i.e., not different indices from each array)
-          # for imitation learning, we only need observations and actions.  
-          ob_batch, ac_batch = TODO
+          # for imitation learning, we only need observations and actions. 
+           
+          idx = np.random.permutation(len(replay_buffer.obs))[:params['train_batch_size']]
+        #   print("index is", idx)
+          ob_batch, ac_batch = replay_buffer.obs[idx], replay_buffer.acs[idx]
+        #   ob_batch, ac_batch = np.array(ob_batch,  dtype=np.float32), np.array(ac_batch, dtype=np.float32)
+        #   ob_batch, ac_batch = torch.from_numpy(ob_batch), torch.from_numpy(ac_batch)
+        #   print("ob_batch, ac_batch", type(ob_batch), type(ac_batch))
+
+        #   print(ob_batch)
 
           # use the sampled data to train an agent
           train_log = actor.update(ob_batch, ac_batch)
